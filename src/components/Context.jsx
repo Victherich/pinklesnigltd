@@ -128,8 +128,8 @@ const seller_email = "admin@pinklesnigerialimited.com"
     const docRef = await addDoc(collection(db, "orders"), orderPayload);
 
     const buyerEmail = orderPayload.accountInfo?.email || '';
-    // const sellerEmail = 'majinfotek@gmail.com';
-    const sellerEmail = 'victorndu393@gmail.com';
+    const sellerEmail = seller_email;
+    // const sellerEmail = 'victorndu393@gmail.com';
 
     // 3. ISOLATED EMAIL BLOCK: Ensure a failing email never blocks order cleanup
     try {

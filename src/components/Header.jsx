@@ -1380,16 +1380,21 @@ export default function Header() {
             </NavLink>
 
             <ActionIcons>
-              <IconButton aria-label="Search" onClick={() => { setShowSearch(!showSearch); setOpen(false); }}>
-                🔍
-              </IconButton>
-              <IconButton as={Link} href="/ashakeade-closet" aria-label="Wishlist" onClick={closeAll}>
-                🤍
-              </IconButton>
-              <IconButton as={Link} href="/ashakeade-closet" aria-label="Cart" onClick={closeAll}>
-                🛍️
+              
+
+<NavLink href="/cart" $active={pathname === "/cart"} onClick={closeAll}>
+              Cart
+            </NavLink>
+
+            <NavLink href="/ashakeade-closet" $active={pathname === "/ashakeade-closet"} onClick={closeAll}>
+                ASHÉVON
+            </NavLink>
+
+
+              {/* <IconButton as={Link} href="/ashakeade-closet" aria-label="Cart" onClick={closeAll}>
+                ASHÉVON
                 {cartTotalItems > 0 && <span className="badge">{cartTotalItems}</span>}
-              </IconButton>
+              </IconButton> */}
             </ActionIcons>
 
             <NavActions>
@@ -1398,7 +1403,7 @@ export default function Header() {
                 $isPrimary={true}
                 onClick={closeAll}
               >
-                📅 Book Now
+                Book
               </ActionButton>
 
               <ActionButton 
