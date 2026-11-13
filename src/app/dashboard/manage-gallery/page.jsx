@@ -1,7 +1,4 @@
 
-
-
-
 // "use client";
 
 // import { useEffect, useState } from "react";
@@ -15,7 +12,6 @@
 //   deleteDoc,
 //   doc,
 //   query,
-//   where,
 //   onSnapshot,
 //   serverTimestamp,
 // } from "firebase/firestore";
@@ -221,7 +217,7 @@
 // `;
 
 // const ModalCard = styled.div`
-//   width: 420px;
+//   width: 440px;
 //   background: ${Theme.SurfaceBg};
 //   padding: 2rem;
 //   border-radius: 12px;
@@ -306,6 +302,23 @@
 //   }
 // `;
 
+// const PreviewGrid = styled.div`
+//   display: grid;
+//   grid-template-columns: repeat(3, 1fr);
+//   gap: 8px;
+//   margin-top: 10px;
+//   max-height: 150px;
+//   overflow-y: auto;
+
+//   img {
+//     width: 100%;
+//     height: 70px;
+//     object-fit: cover;
+//     border-radius: 4px;
+//     border: 1px solid ${Theme.BorderColor};
+//   }
+// `;
+
 // /* ---------------- COMPONENT ---------------- */
 
 // export default function GalleryManager() {
@@ -313,47 +326,15 @@
 //   const [modalOpen, setModalOpen] = useState(false);
 //   const [title, setTitle] = useState("");
 //   const [categoryId, setCategoryId] = useState("properties");
-//   const [imageFile, setImageFile] = useState(null);
-//   const [imagePreview, setImagePreview] = useState(null);
+//   const [imageFiles, setImageFiles] = useState([]); // Changed to support multiple files
+//   const [imagePreviews, setImagePreviews] = useState([]); // Array of previews
 //   const [editingId, setEditingId] = useState(null);
 //   const [loading, setLoading] = useState(false);
 
 //   const galleryRef = collection(db, "galleryImages");
 
-//   // // Real-time listener using onSnapshot with robust auth state handling
-//   // useEffect(() => {
-//   //   let unsubscribeSnapshot = null;
-
-//   //   const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-//   //     if (user) {
-//   //       const q = query(galleryRef, where("userId", "==", user.uid));
-        
-//   //       // Listen to live data changes
-//   //       unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-//   //         const arr = [];
-//   //         snapshot.forEach((docSnap) => {
-//   //           arr.push({ id: docSnap.id, ...docSnap.data() });
-//   //         });
-//   //         setGalleryItems(arr);
-//   //       }, (error) => {
-//   //         console.error("Firestore snapshot error:", error);
-//   //       });
-//   //     } else {
-//   //       setGalleryItems([]);
-//   //       if (unsubscribeSnapshot) unsubscribeSnapshot();
-//   //     }
-//   //   });
-
-//   //   return () => {
-//   //     unsubscribeAuth();
-//   //     if (unsubscribeSnapshot) unsubscribeSnapshot();
-//   //   };
-//   // }, []);
-
-
-// // Real-time listener that fetches ALL gallery items for everyone
+//   // Real-time listener for all gallery items
 //   useEffect(() => {
-//     // Query all documents in the galleryImages collection
 //     const q = query(galleryRef);
 
 //     const unsubscribeSnapshot = onSnapshot(
@@ -375,18 +356,21 @@
 //     };
 //   }, []);
 
-
 //   const handleImageSelect = (e) => {
-//     const file = e.target.files[0];
-//     if (!file) return;
+//     const files = Array.from(e.target.files);
+//     if (files.length === 0) return;
 
-//     if (!file.type.startsWith("image/")) {
-//       Swal.fire("Error", "Only images allowed", "error");
-//       return;
+//     // Validate files
+//     for (let file of files) {
+//       if (!file.type.startsWith("image/")) {
+//         Swal.fire("Error", "Only image files are allowed", "error");
+//         return;
+//       }
 //     }
 
-//     setImageFile(file);
-//     setImagePreview(URL.createObjectURL(file));
+//     setImageFiles(files);
+//     const previews = files.map((file) => URL.createObjectURL(file));
+//     setImagePreviews(previews);
 //   };
 
 //   const compressImage = async (file, maxSizeKB = 150) => {
@@ -438,8 +422,8 @@
 //     setEditingId(item.id);
 //     setTitle(item.title);
 //     setCategoryId(item.categoryId);
-//     setImageFile(null);
-//     setImagePreview(item.url);
+//     setImageFiles([]);
+//     setImagePreviews([item.url]); // Single preview for editing existing image
 //   };
 
 //   const saveGalleryItem = async () => {
@@ -449,35 +433,35 @@
 //       return;
 //     }
 
-//     if (!title.trim()) {
-//       return Swal.fire("Missing Field", "Image title is required.", "warning");
+//     if (!title.trim() && !editingId) {
+//       return Swal.fire("Missing Field", "Image title prefix/name is required.", "warning");
 //     }
 
 //     if (!categoryId) {
 //       return Swal.fire("Missing Field", "Please select a category.", "warning");
 //     }
 
-//     if (!editingId && !imageFile) {
-//       return Swal.fire("Missing Field", "An image file is required.", "warning");
+//     if (!editingId && imageFiles.length === 0) {
+//       return Swal.fire("Missing Field", "Please select at least one image file.", "warning");
 //     }
 
 //     setLoading(true);
 //     Swal.fire({
-//       title: editingId ? "Updating image..." : "Uploading image...",
+//       title: editingId ? "Updating image..." : `Uploading ${imageFiles.length} image(s)...`,
 //       text: "Please wait while we process your request.",
 //       allowOutsideClick: false,
 //       didOpen: () => Swal.showLoading(),
 //     });
 
 //     try {
-//       let imageUrl = imagePreview;
-
-//       if (imageFile) {
-//         const compressedBlob = await compressImage(imageFile, 150);
-//         imageUrl = await uploadToCloudinary(compressedBlob);
-//       }
-
 //       if (editingId) {
+//         // Single update when editing an existing card
+//         let imageUrl = imagePreviews[0];
+//         if (imageFiles.length > 0) {
+//           const compressedBlob = await compressImage(imageFiles[0], 150);
+//           imageUrl = await uploadToCloudinary(compressedBlob);
+//         }
+
 //         await updateDoc(doc(db, "galleryImages", editingId), {
 //           title,
 //           categoryId,
@@ -485,14 +469,25 @@
 //         });
 //         Swal.fire("Updated!", "Gallery image updated successfully.", "success");
 //       } else {
-//         await addDoc(galleryRef, {
-//           userId: user.uid,
-//           title,
-//           categoryId,
-//           url: imageUrl,
-//           createdAt: serverTimestamp(),
-//         });
-//         Swal.fire("Success!", "New image added to gallery.", "success");
+//         // Bulk upload loop for multiple images
+//         for (let i = 0; i < imageFiles.length; i++) {
+//           const file = imageFiles[i];
+//           const compressedBlob = await compressImage(file, 150);
+//           const imageUrl = await uploadToCloudinary(compressedBlob);
+
+//           // Generate sequential title if uploading multiple
+//           const itemTitle = imageFiles.length > 1 ? `${title.trim()} (${i + 1})` : title.trim();
+
+//           await addDoc(galleryRef, {
+//             userId: user.uid,
+//             title: itemTitle,
+//             categoryId,
+//             url: imageUrl,
+//             createdAt: serverTimestamp(),
+//           });
+//         }
+
+//         Swal.fire("Success!", `${imageFiles.length} new image(s) added to gallery.`, "success");
 //       }
 
 //       setModalOpen(false);
@@ -527,8 +522,8 @@
 //   };
 
 //   const resetImageState = () => {
-//     setImageFile(null);
-//     setImagePreview(null);
+//     setImageFiles([]);
+//     setImagePreviews([]);
 //   };
 
 //   const structuredGallery = galleryCategories.map((cat) => ({
@@ -542,7 +537,7 @@
 //         <Title>Manage Gallery Images</Title>
 //         <SubtitleText>Upload, organize, and manage imagery across your various portfolio sections.</SubtitleText>
 
-//         <PlusButton onClick={openNewModal}>+ Upload New Gallery Image</PlusButton>
+//         <PlusButton onClick={openNewModal}>+ Upload New Gallery Images</PlusButton>
 
 //         {structuredGallery.map((category) => (
 //           <CategorySection key={category.id}>
@@ -583,14 +578,14 @@
 //           >
 //             <ModalCard onClick={(e) => e.stopPropagation()}>
 //               <h2 style={{ marginBottom: "1rem" }}>
-//                 {editingId ? "Edit Gallery Image" : "Upload Gallery Image"}
+//                 {editingId ? "Edit Gallery Image" : "Upload Multiple Images"}
 //               </h2>
 
-//               <Label>Image Title / Code</Label>
+//               <Label>Image Title / Base Name</Label>
 //               <Input
 //                 value={title}
 //                 onChange={(e) => setTitle(e.target.value)}
-//                 placeholder="e.g. 1000723447 or Executive Dining Table"
+//                 placeholder="e.g. Executive Dining Table"
 //               />
 
 //               <Label>Gallery Category</Label>
@@ -602,38 +597,30 @@
 //                 ))}
 //               </Select>
 
-//               <Label>Image File</Label>
+//               <Label>Select Images {editingId ? "" : "(Multiple allowed)"}</Label>
 //               <input
 //                 id="galleryUpload"
 //                 type="file"
 //                 accept="image/*"
+//                 multiple={!editingId}
 //                 onChange={handleImageSelect}
 //                 style={{ display: "none" }}
 //               />
 //               <label htmlFor="galleryUpload">
-//                 <PreviewBtn as="span">Select / Change Image</PreviewBtn>
+//                 <PreviewBtn as="span">Select / Change Images</PreviewBtn>
 //               </label>
 
-//               {imagePreview && (
-//                 <div>
-//                   <img
-//                     src={imagePreview}
-//                     alt="Preview"
-//                     style={{
-//                       width: "100%",
-//                       height: "120px",
-//                       borderRadius: "6px",
-//                       objectFit: "cover",
-//                       marginTop: "10px",
-//                       border: `2px solid ${Theme.PrimaryGreen}`,
-//                     }}
-//                   />
-//                 </div>
+//               {imagePreviews.length > 0 && (
+//                 <PreviewGrid>
+//                   {imagePreviews.map((src, idx) => (
+//                     <img key={idx} src={src} alt={`Preview ${idx + 1}`} />
+//                   ))}
+//                 </PreviewGrid>
 //               )}
 
 //               <ModalFooter>
 //                 <Btn onClick={saveGalleryItem} disabled={loading}>
-//                   {editingId ? "Update" : "Upload"}
+//                   {editingId ? "Update" : `Upload (${imageFiles.length})`}
 //                 </Btn>
 //                 <Btn
 //                   $delete
@@ -652,6 +639,10 @@
 //     </Container>
 //   );
 // }
+
+
+
+
 
 
 
@@ -789,6 +780,7 @@ const ImageGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1.2rem;
+  margin-bottom: 1.5rem;
 `;
 
 const ImageCard = styled.div`
@@ -799,7 +791,7 @@ const ImageCard = styled.div`
   display: flex;
   flex-direction: column;
 
-  img {
+  img, video {
     width: 100%;
     height: 130px;
     object-fit: cover;
@@ -967,7 +959,7 @@ const PreviewGrid = styled.div`
   max-height: 150px;
   overflow-y: auto;
 
-  img {
+  img, video {
     width: 100%;
     height: 70px;
     object-fit: cover;
@@ -980,20 +972,24 @@ const PreviewGrid = styled.div`
 
 export default function GalleryManager() {
   const [galleryItems, setGalleryItems] = useState([]);
+  const [videoItems, setVideoItems] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [mediaType, setMediaType] = useState("image"); // "image" or "video"
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState("properties");
-  const [imageFiles, setImageFiles] = useState([]); // Changed to support multiple files
-  const [imagePreviews, setImagePreviews] = useState([]); // Array of previews
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
+  const [videoPreviews, setVideoPreviews] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const galleryRef = collection(db, "galleryImages");
+  const videoRef = collection(db, "galleryVideos");
 
-  // Real-time listener for all gallery items
+  // Real-time listener for all gallery images
   useEffect(() => {
     const q = query(galleryRef);
-
     const unsubscribeSnapshot = onSnapshot(
       q,
       (snapshot) => {
@@ -1013,11 +1009,32 @@ export default function GalleryManager() {
     };
   }, []);
 
+  // Real-time listener for all gallery videos
+  useEffect(() => {
+    const q = query(videoRef);
+    const unsubscribeSnapshot = onSnapshot(
+      q,
+      (snapshot) => {
+        const arr = [];
+        snapshot.forEach((docSnap) => {
+          arr.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setVideoItems(arr);
+      },
+      (error) => {
+        console.error("Firestore snapshot error:", error);
+      }
+    );
+
+    return () => {
+      unsubscribeSnapshot();
+    };
+  }, []);
+
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    // Validate files
     for (let file of files) {
       if (!file.type.startsWith("image/")) {
         Swal.fire("Error", "Only image files are allowed", "error");
@@ -1028,6 +1045,22 @@ export default function GalleryManager() {
     setImageFiles(files);
     const previews = files.map((file) => URL.createObjectURL(file));
     setImagePreviews(previews);
+  };
+
+  const handleVideoSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    for (let file of files) {
+      if (!file.type.startsWith("video/")) {
+        Swal.fire("Error", "Only video files are allowed", "error");
+        return;
+      }
+    }
+
+    setVideoFiles(files);
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setVideoPreviews(previews);
   };
 
   const compressImage = async (file, maxSizeKB = 150) => {
@@ -1047,13 +1080,13 @@ export default function GalleryManager() {
     }
   };
 
-  const uploadToCloudinary = async (blob) => {
+  const uploadToCloudinary = async (fileToUpload, resourceType = "image") => {
     const data = new FormData();
-    data.append("file", blob, "gallery.jpg");
+    data.append("file", fileToUpload);
     data.append("upload_preset", "bees_interior");
     data.append("folder", "pinkles_gallery");
 
-    const res = await fetch("https://api.cloudinary.com/v1_1/aqxyleoh/image/upload", {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/aqxyleoh/${resourceType}/upload`, {
       method: "POST",
       body: data,
     });
@@ -1071,16 +1104,27 @@ export default function GalleryManager() {
     setEditingId(null);
     setTitle("");
     setCategoryId("properties");
-    resetImageState();
+    setMediaType("image");
+    resetMediaState();
   };
 
-  const openEditModal = (item) => {
+  const openEditModal = (item, type = "image") => {
     setModalOpen(true);
     setEditingId(item.id);
     setTitle(item.title);
     setCategoryId(item.categoryId);
-    setImageFiles([]);
-    setImagePreviews([item.url]); // Single preview for editing existing image
+    setMediaType(type);
+    if (type === "image") {
+      setImageFiles([]);
+      setImagePreviews([item.url]);
+      setVideoFiles([]);
+      setVideoPreviews([]);
+    } else {
+      setVideoFiles([]);
+      setVideoPreviews([item.url]);
+      setImageFiles([]);
+      setImagePreviews([]);
+    }
   };
 
   const saveGalleryItem = async () => {
@@ -1091,20 +1135,26 @@ export default function GalleryManager() {
     }
 
     if (!title.trim() && !editingId) {
-      return Swal.fire("Missing Field", "Image title prefix/name is required.", "warning");
+      return Swal.fire("Missing Field", "Title prefix/name is required.", "warning");
     }
 
     if (!categoryId) {
       return Swal.fire("Missing Field", "Please select a category.", "warning");
     }
 
-    if (!editingId && imageFiles.length === 0) {
-      return Swal.fire("Missing Field", "Please select at least one image file.", "warning");
+    if (!editingId) {
+      if (mediaType === "image" && imageFiles.length === 0) {
+        return Swal.fire("Missing Field", "Please select at least one image file.", "warning");
+      }
+      if (mediaType === "video" && videoFiles.length === 0) {
+        return Swal.fire("Missing Field", "Please select at least one video file.", "warning");
+      }
     }
 
     setLoading(true);
+    const count = mediaType === "image" ? imageFiles.length : videoFiles.length;
     Swal.fire({
-      title: editingId ? "Updating image..." : `Uploading ${imageFiles.length} image(s)...`,
+      title: editingId ? `Updating ${mediaType}...` : `Uploading ${count} ${mediaType}(s)...`,
       text: "Please wait while we process your request.",
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading(),
@@ -1112,43 +1162,58 @@ export default function GalleryManager() {
 
     try {
       if (editingId) {
-        // Single update when editing an existing card
-        let imageUrl = imagePreviews[0];
-        if (imageFiles.length > 0) {
+        let mediaUrl = mediaType === "image" ? imagePreviews[0] : videoPreviews[0];
+        if (mediaType === "image" && imageFiles.length > 0) {
           const compressedBlob = await compressImage(imageFiles[0], 150);
-          imageUrl = await uploadToCloudinary(compressedBlob);
+          mediaUrl = await uploadToCloudinary(compressedBlob, "image");
+        } else if (mediaType === "video" && videoFiles.length > 0) {
+          mediaUrl = await uploadToCloudinary(videoFiles[0], "video");
         }
 
-        await updateDoc(doc(db, "galleryImages", editingId), {
+        const targetRef = mediaType === "image" ? doc(db, "galleryImages", editingId) : doc(db, "galleryVideos", editingId);
+        await updateDoc(targetRef, {
           title,
           categoryId,
-          url: imageUrl,
+          url: mediaUrl,
         });
-        Swal.fire("Updated!", "Gallery image updated successfully.", "success");
+        Swal.fire("Updated!", `Gallery ${mediaType} updated successfully.`, "success");
       } else {
-        // Bulk upload loop for multiple images
-        for (let i = 0; i < imageFiles.length; i++) {
-          const file = imageFiles[i];
-          const compressedBlob = await compressImage(file, 150);
-          const imageUrl = await uploadToCloudinary(compressedBlob);
+        if (mediaType === "image") {
+          for (let i = 0; i < imageFiles.length; i++) {
+            const file = imageFiles[i];
+            const compressedBlob = await compressImage(file, 150);
+            const imageUrl = await uploadToCloudinary(compressedBlob, "image");
+            const itemTitle = imageFiles.length > 1 ? `${title.trim()} (${i + 1})` : title.trim();
 
-          // Generate sequential title if uploading multiple
-          const itemTitle = imageFiles.length > 1 ? `${title.trim()} (${i + 1})` : title.trim();
+            await addDoc(galleryRef, {
+              userId: user.uid,
+              title: itemTitle,
+              categoryId,
+              url: imageUrl,
+              createdAt: serverTimestamp(),
+            });
+          }
+          Swal.fire("Success!", `${imageFiles.length} new image(s) added to gallery.`, "success");
+        } else {
+          for (let i = 0; i < videoFiles.length; i++) {
+            const file = videoFiles[i];
+            const videoUrl = await uploadToCloudinary(file, "video");
+            const itemTitle = videoFiles.length > 1 ? `${title.trim()} (${i + 1})` : title.trim();
 
-          await addDoc(galleryRef, {
-            userId: user.uid,
-            title: itemTitle,
-            categoryId,
-            url: imageUrl,
-            createdAt: serverTimestamp(),
-          });
+            await addDoc(videoRef, {
+              userId: user.uid,
+              title: itemTitle,
+              categoryId,
+              url: videoUrl,
+              createdAt: serverTimestamp(),
+            });
+          }
+          Swal.fire("Success!", `${videoFiles.length} new video(s) added to gallery.`, "success");
         }
-
-        Swal.fire("Success!", `${imageFiles.length} new image(s) added to gallery.`, "success");
       }
 
       setModalOpen(false);
-      resetImageState();
+      resetMediaState();
     } catch (error) {
       console.error(error);
       Swal.fire("Error", error.message || "Something went wrong.", "error");
@@ -1157,10 +1222,10 @@ export default function GalleryManager() {
     }
   };
 
-  const deleteGalleryItem = async (id) => {
+  const deleteGalleryItem = async (id, type = "image") => {
     const confirm = await Swal.fire({
-      title: "Delete image?",
-      text: "This image will be removed from your gallery permanently.",
+      title: `Delete ${type}?`,
+      text: `This ${type} will be removed from your gallery permanently.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, delete",
@@ -1170,75 +1235,122 @@ export default function GalleryManager() {
     if (!confirm.isConfirmed) return;
 
     try {
-      await deleteDoc(doc(db, "galleryImages", id));
-      Swal.fire("Deleted!", "Image removed successfully.", "success");
+      const targetRef = type === "image" ? doc(db, "galleryImages", id) : doc(db, "galleryVideos", id);
+      await deleteDoc(targetRef);
+      Swal.fire("Deleted!", `${type.charAt(0).toUpperCase() + type.slice(1)} removed successfully.`, "success");
     } catch (error) {
       console.error(error);
-      Swal.fire("Error", "Could not delete image.", "error");
+      Swal.fire("Error", `Could not delete ${type}.`, "error");
     }
   };
 
-  const resetImageState = () => {
+  const resetMediaState = () => {
     setImageFiles([]);
     setImagePreviews([]);
+    setVideoFiles([]);
+    setVideoPreviews([]);
   };
 
   const structuredGallery = galleryCategories.map((cat) => ({
     ...cat,
     images: galleryItems.filter((item) => item.categoryId === cat.id),
+    videos: videoItems.filter((item) => item.categoryId === cat.id),
   }));
 
   return (
     <Container>
       <ContentWrapper>
-        <Title>Manage Gallery Images</Title>
-        <SubtitleText>Upload, organize, and manage imagery across your various portfolio sections.</SubtitleText>
+        <Title>Manage Gallery Media</Title>
+        <SubtitleText>Upload, organize, and manage imagery and videos across your various portfolio sections.</SubtitleText>
 
-        <PlusButton onClick={openNewModal}>+ Upload New Gallery Images</PlusButton>
+        <PlusButton onClick={openNewModal}>+ Upload New Gallery Media</PlusButton>
 
-        {structuredGallery.map((category) => (
-          <CategorySection key={category.id}>
-            <CategoryHeader>
-              <h3>{category.title}</h3>
-              <span>{category.tag} ({category.images.length})</span>
-            </CategoryHeader>
+        {structuredGallery.map((category) => {
+          const totalCount = category.images.length + category.videos.length;
+          return (
+            <CategorySection key={category.id}>
+              <CategoryHeader>
+                <h3>{category.title}</h3>
+                <span>{category.tag} ({totalCount})</span>
+              </CategoryHeader>
 
-            {category.images.length === 0 ? (
-              <p style={{ fontSize: "0.85rem", color: Theme.TextMuted, fontStyle: "italic" }}>
-                No images uploaded in this category yet.
-              </p>
-            ) : (
-              <ImageGrid>
-                {category.images.map((img) => (
-                  <ImageCard key={img.id}>
-                    <img src={img.url} alt={img.title} />
-                    <div className="card-body">
-                      <p title={img.title}>{img.title}</p>
-                      <ActionRow>
-                        <Btn onClick={() => openEditModal(img)}>Edit</Btn>
-                        <Btn $delete onClick={() => deleteGalleryItem(img.id)}>Delete</Btn>
-                      </ActionRow>
+              {totalCount === 0 ? (
+                <p style={{ fontSize: "0.85rem", color: Theme.TextMuted, fontStyle: "italic" }}>
+                  No images or videos uploaded in this category yet.
+                </p>
+              ) : (
+                <>
+                  {category.images.length > 0 && (
+                    <div style={{ marginBottom: category.videos.length > 0 ? "1.5rem" : "0" }}>
+                      <p style={{ fontSize: "0.85rem", fontWeight: "700", marginBottom: "0.75rem", color: Theme.PrimaryGreen }}>Images</p>
+                      <ImageGrid>
+                        {category.images.map((img) => (
+                          <ImageCard key={img.id}>
+                            <img src={img.url} alt={img.title} />
+                            <div className="card-body">
+                              <p title={img.title}>{img.title}</p>
+                              <ActionRow>
+                                <Btn onClick={() => openEditModal(img, "image")}>Edit</Btn>
+                                <Btn $delete onClick={() => deleteGalleryItem(img.id, "image")}>Delete</Btn>
+                              </ActionRow>
+                            </div>
+                          </ImageCard>
+                        ))}
+                      </ImageGrid>
                     </div>
-                  </ImageCard>
-                ))}
-              </ImageGrid>
-            )}
-          </CategorySection>
-        ))}
+                  )}
+
+                  {category.videos.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "0.85rem", fontWeight: "700", marginBottom: "0.75rem", color: Theme.PrimaryGreen }}>Videos</p>
+                      <ImageGrid>
+                        {category.videos.map((vid) => (
+                          <ImageCard key={vid.id}>
+                            <video src={vid.url} controls={false} muted />
+                            <div className="card-body">
+                              <p title={vid.title}>{vid.title}</p>
+                              <ActionRow>
+                                <Btn onClick={() => openEditModal(vid, "video")}>Edit</Btn>
+                                <Btn $delete onClick={() => deleteGalleryItem(vid.id, "video")}>Delete</Btn>
+                              </ActionRow>
+                            </div>
+                          </ImageCard>
+                        ))}
+                      </ImageGrid>
+                    </div>
+                  )}
+                </>
+              )}
+            </CategorySection>
+          );
+        })}
 
         {modalOpen && (
           <ModalBackground
             onClick={() => {
               setModalOpen(false);
-              resetImageState();
+              resetMediaState();
             }}
           >
             <ModalCard onClick={(e) => e.stopPropagation()}>
               <h2 style={{ marginBottom: "1rem" }}>
-                {editingId ? "Edit Gallery Image" : "Upload Multiple Images"}
+                {editingId ? `Edit Gallery ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}` : "Upload Multiple Media"}
               </h2>
 
-              <Label>Image Title / Base Name</Label>
+              {!editingId && (
+                <>
+                  <Label>Media Type</Label>
+                  <Select value={mediaType} onChange={(e) => {
+                    setMediaType(e.target.value);
+                    resetMediaState();
+                  }}>
+                    <option value="image">Images</option>
+                    <option value="video">Videos</option>
+                  </Select>
+                </>
+              )}
+
+              <Label>Title / Base Name</Label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -1254,36 +1366,63 @@ export default function GalleryManager() {
                 ))}
               </Select>
 
-              <Label>Select Images {editingId ? "" : "(Multiple allowed)"}</Label>
-              <input
-                id="galleryUpload"
-                type="file"
-                accept="image/*"
-                multiple={!editingId}
-                onChange={handleImageSelect}
-                style={{ display: "none" }}
-              />
-              <label htmlFor="galleryUpload">
-                <PreviewBtn as="span">Select / Change Images</PreviewBtn>
-              </label>
+              {mediaType === "image" ? (
+                <>
+                  <Label>Select Images {editingId ? "" : "(Multiple allowed)"}</Label>
+                  <input
+                    id="galleryUpload"
+                    type="file"
+                    accept="image/*"
+                    multiple={!editingId}
+                    onChange={handleImageSelect}
+                    style={{ display: "none" }}
+                  />
+                  <label htmlFor="galleryUpload">
+                    <PreviewBtn as="span">Select / Change Images</PreviewBtn>
+                  </label>
 
-              {imagePreviews.length > 0 && (
-                <PreviewGrid>
-                  {imagePreviews.map((src, idx) => (
-                    <img key={idx} src={src} alt={`Preview ${idx + 1}`} />
-                  ))}
-                </PreviewGrid>
+                  {imagePreviews.length > 0 && (
+                    <PreviewGrid>
+                      {imagePreviews.map((src, idx) => (
+                        <img key={idx} src={src} alt={`Preview ${idx + 1}`} />
+                      ))}
+                    </PreviewGrid>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Label>Select Videos {editingId ? "" : "(Multiple allowed)"}</Label>
+                  <input
+                    id="galleryVideoUpload"
+                    type="file"
+                    accept="video/*"
+                    multiple={!editingId}
+                    onChange={handleVideoSelect}
+                    style={{ display: "none" }}
+                  />
+                  <label htmlFor="galleryVideoUpload">
+                    <PreviewBtn as="span">Select / Change Videos</PreviewBtn>
+                  </label>
+
+                  {videoPreviews.length > 0 && (
+                    <PreviewGrid>
+                      {videoPreviews.map((src, idx) => (
+                        <video key={idx} src={src} controls />
+                      ))}
+                    </PreviewGrid>
+                  )}
+                </>
               )}
 
               <ModalFooter>
                 <Btn onClick={saveGalleryItem} disabled={loading}>
-                  {editingId ? "Update" : `Upload (${imageFiles.length})`}
+                  {editingId ? "Update" : `Upload (${mediaType === "image" ? imageFiles.length : videoFiles.length})`}
                 </Btn>
                 <Btn
                   $delete
                   onClick={() => {
                     setModalOpen(false);
-                    resetImageState();
+                    resetMediaState();
                   }}
                 >
                   Cancel

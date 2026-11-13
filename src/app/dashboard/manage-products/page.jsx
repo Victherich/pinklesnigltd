@@ -529,6 +529,17 @@ const ToggleThumb = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 `;
 
+const ProductVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+
+  ${ProductCard}:hover & {
+    transform: scale(1.05);
+  }
+`;
+
 
 
 // 🔹 Compression utility function
@@ -607,6 +618,11 @@ export default function ProductsCrudPage() {
   // Modal State Controls
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Video State for Product Upload
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState("");
+  const [existingVideoUrl, setExistingVideoUrl] = useState("");
   
   // Form states
   const [form, setForm] = useState({
@@ -724,6 +740,24 @@ export default function ProductsCrudPage() {
     setExistingImageUrls(newExisting);
   };
 
+
+const handleVideoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+    setExistingVideoUrl("");
+    e.target.value = "";
+  };
+
+  const handleRemoveVideo = () => {
+    setVideoFile(null);
+    setVideoPreview("");
+    setExistingVideoUrl("");
+  };
+
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -807,6 +841,31 @@ export default function ProductsCrudPage() {
         }
       }
 
+      // Handle Video Upload to Cloudinary
+      let finalVideoUrl = existingVideoUrl;
+      if (videoFile) {
+        const videoData = new FormData();
+        videoData.append("file", videoFile);
+        videoData.append("upload_preset", "bees_interior");
+        videoData.append("folder", "products_pinkles_videos");
+
+        const videoRes = await fetch(
+          "https://api.cloudinary.com/v1_1/aqxyleoh/video/upload",
+          {
+            method: "POST",
+            body: videoData,
+          }
+        );
+
+        const videoResult = await videoRes.json();
+
+        if (!videoRes.ok) {
+          throw new Error(videoResult.error?.message || "Video upload failed");
+        }
+
+        finalVideoUrl = videoResult.secure_url;
+      }
+
       const featuresList = featuresText
         .split("\n")
         .map((item) => item.trim())
@@ -858,6 +917,7 @@ export default function ProductsCrudPage() {
         youtubeLinks: youtubeLinksList,
         locationIds: form.locationIds|| [], // 🌟 Save multiple location IDs array
   locationId: form.locationIds[0] || "", // Optional fallback for single location dependencies
+  videoUrl: finalVideoUrl || "",
       };
 
       if (editingId) {
@@ -887,6 +947,9 @@ export default function ProductsCrudPage() {
       setFeaturesText("");
       setPriceTiers([{ minQty: 1, maxQty: 1, price: "" }]);
       setYoutubeLinksText("");
+      setVideoFile(null);
+      setVideoPreview("");
+      setExistingVideoUrl("");
       fetchProducts();
 
     } catch (error) {
@@ -899,7 +962,61 @@ export default function ProductsCrudPage() {
     }
   };
 
-  const handleEdit = (item, e) => {
+  // const handleEdit = (item, e) => {
+  //   e.stopPropagation();
+  //   const itemImages = item.images || (item.image ? [item.image] : []);
+
+  //   let loadedCategories = item.categoryIds || [];
+  //   if (loadedCategories.length === 0 && (item.categoryId || item.category)) {
+  //     loadedCategories = [item.categoryId || item.category];
+  //   }
+
+  //   // 🌟 Load locations with backward compatibility fallback
+  // let loadedLocations = item.locationIds || [];
+  // if (loadedLocations.length === 0 && (item.locationId || item.location)) {
+  //   loadedLocations = [item.locationId || item.location];
+  // }
+    
+  //   setForm({
+  //     name: item.name || "",
+  //     description: item.description || "",
+  //     amount: item.pricingType === "single" ? (item.amount || "") : "",
+  //     strikeAmount: item.strikeAmount || "", // 🌟 Load existing strike-through price
+  //     quantity: item.quantity || "",
+  //     neverFinishes: item.neverFinishes || false,
+  //     categoryIds: loadedCategories,
+  //     isLive: item.isLive ?? true,
+  //     pricingType: item.pricingType || "single",
+  //   locationIds: loadedLocations, 
+  //   });
+  //   setEditingId(item.id);
+
+  //   const slotUrls = ["", "", "", ""];
+  //   const slotPreviews = ["", "", "", ""];
+  //   itemImages.forEach((url, idx) => {
+  //     if (idx < 4) {
+  //       slotUrls[idx] = url;
+  //       slotPreviews[idx] = url;
+  //     }
+  //   });
+
+  //   setExistingImageUrls(slotUrls);
+  //   setImagePreviews(slotPreviews);
+  //   setImageFiles([null, null, null, null]);
+  //   setShowModal(true);
+  //   setVariations(item.variations || []);
+  //   setFeaturesText(item.features ? item.features.join("\n") : "");
+  //   // setPriceTiers(item.priceTiers && item.priceTiers.length > 0 ? item.priceTiers : [{ minQty: 1, maxQty: 1, price: item.amount || "" }]);
+  //  setPriceTiers(
+  //   item.priceTiers && item.priceTiers.length > 0 
+  //     ? item.priceTiers 
+  //     : [{ minQty: 1, maxQty: 1, price: item.amount || "" }]
+  // );
+  //   setYoutubeLinksText(item.youtubeLinks ? item.youtubeLinks.join("\n") : "");
+  // };
+
+
+const handleEdit = (item, e) => {
     e.stopPropagation();
     const itemImages = item.images || (item.image ? [item.image] : []);
 
@@ -909,10 +1026,10 @@ export default function ProductsCrudPage() {
     }
 
     // 🌟 Load locations with backward compatibility fallback
-  let loadedLocations = item.locationIds || [];
-  if (loadedLocations.length === 0 && (item.locationId || item.location)) {
-    loadedLocations = [item.locationId || item.location];
-  }
+    let loadedLocations = item.locationIds || [];
+    if (loadedLocations.length === 0 && (item.locationId || item.location)) {
+      loadedLocations = [item.locationId || item.location];
+    }
     
     setForm({
       name: item.name || "",
@@ -924,7 +1041,7 @@ export default function ProductsCrudPage() {
       categoryIds: loadedCategories,
       isLive: item.isLive ?? true,
       pricingType: item.pricingType || "single",
-    locationIds: loadedLocations, 
+      locationIds: loadedLocations, 
     });
     setEditingId(item.id);
 
@@ -940,17 +1057,31 @@ export default function ProductsCrudPage() {
     setExistingImageUrls(slotUrls);
     setImagePreviews(slotPreviews);
     setImageFiles([null, null, null, null]);
+
+    // 🌟 Video Load Logic
+    if (item.videoUrl) {
+      setExistingVideoUrl(item.videoUrl);
+      setVideoPreview(item.videoUrl);
+    } else {
+      setExistingVideoUrl("");
+      setVideoPreview("");
+    }
+    setVideoFile(null);
+
     setShowModal(true);
     setVariations(item.variations || []);
     setFeaturesText(item.features ? item.features.join("\n") : "");
-    // setPriceTiers(item.priceTiers && item.priceTiers.length > 0 ? item.priceTiers : [{ minQty: 1, maxQty: 1, price: item.amount || "" }]);
-   setPriceTiers(
-    item.priceTiers && item.priceTiers.length > 0 
-      ? item.priceTiers 
-      : [{ minQty: 1, maxQty: 1, price: item.amount || "" }]
-  );
+    
+    setPriceTiers(
+      item.priceTiers && item.priceTiers.length > 0 
+        ? item.priceTiers 
+        : [{ minQty: 1, maxQty: 1, price: item.amount || "" }]
+    );
     setYoutubeLinksText(item.youtubeLinks ? item.youtubeLinks.join("\n") : "");
   };
+
+
+
 
   const handleAddVariation = () => {
     setVariations([...variations, { name: "", options: "" }]);
@@ -1127,6 +1258,9 @@ export default function ProductsCrudPage() {
             setPriceTiers([{ minQty: 1, maxQty: 1, price: "" }]);
             setYoutubeLinksText("");
             setShowModal(true);
+            setVideoFile(null);
+setVideoPreview("");
+setExistingVideoUrl("");
           }}>
             <span>+ Add Product</span>
           </PrimaryButton>
@@ -1606,6 +1740,37 @@ export default function ProductsCrudPage() {
                     </ImageSlotCard>
                   ))}
                 </ImageSlotsGrid>
+              </div>
+
+              {/* 🌟 Product Video Upload Slot */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: "700", color: Dark }}>
+                  Product Video (Optional - Previews like images)
+                </label>
+                <ImageSlotCard style={{ width: "100%" }}>
+                  <SlotLabel>Product Video File</SlotLabel>
+                  {videoPreview ? (
+                    <SlotPreviewWrapper style={{ height: "120px" }}>
+                      <video 
+                        src={videoPreview} 
+                        controls 
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <RemoveSlotButton type="button" onClick={handleRemoveVideo}>
+                        ✕
+                      </RemoveSlotButton>
+                    </SlotPreviewWrapper>
+                  ) : (
+                    <UploadButtonLabel>
+                      Choose Video File
+                      <HiddenFileInput 
+                        type="file" 
+                        accept="video/*"
+                        onChange={handleVideoFileChange}
+                      />
+                    </UploadButtonLabel>
+                  )}
+                </ImageSlotCard>
               </div>
 
               <ModalActions>

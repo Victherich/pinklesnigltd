@@ -1209,7 +1209,24 @@ const BestsellerBadge = styled.div`
 `;
 
 
+const ProductVideoWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid ${borderColor};
+  background: ${softBg};
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
 
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    max-height: 480px;
+  }
+`;
 
 
 
@@ -1248,6 +1265,7 @@ export default function ProductDetailPage({ params }) {
   const { addToCart } = useCart();
   // Add location state near your other states
 const [locations, setLocations] = useState([]);
+const [viewingVideo, setViewingVideo] = useState(false);
 
 console.log(product)
 
@@ -1366,6 +1384,7 @@ console.log(product)
             features: data.features || [],
             strikeAmount:data.strikeAmount,
             locationIds: data.locationIds || (data.locationId ? [data.locationId] : []),
+            videoUrl: data.videoUrl || "",
           };
           setProduct(fetchedProduct);
           
@@ -1575,7 +1594,7 @@ const activePrice = product.amount;
         </BackButton>
 
         <ProductGrid>
-          <GalleryContainer>
+          {/* <GalleryContainer>
             <ImageWrapper>
                 {isBestseller && (
           <BestsellerBadge>
@@ -1601,6 +1620,62 @@ const activePrice = product.amount;
                     key={index}
                     $active={selectedImageIndex === index}
                     onClick={() => setSelectedImageIndex(index)}
+                  >
+                    <img src={imgUrl} alt={`${product.name} thumbnail ${index + 1}`} />
+                  </Thumbnail>
+                ))}
+              </ThumbnailsRow>
+            )}
+          </GalleryContainer> */}
+
+          <GalleryContainer>
+            {/* Display either the video or the active image */}
+            {viewingVideo && product.videoUrl ? (
+              <ProductVideoWrapper>
+                {isBestseller && <BestsellerBadge>🔥 Bestseller</BestsellerBadge>}
+                <video src={product.videoUrl} controls autoPlay playsInline loop />
+              </ProductVideoWrapper>
+            ) : (
+              <ImageWrapper>
+                {isBestseller && <BestsellerBadge>🔥 Bestseller</BestsellerBadge>}
+                <FloatingWishlistIcon onClick={handleToggleWishlist} title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}>
+                  {isWishlisted ? (
+                    <span style={{ color: dangerRed, fontSize: "1.2rem" }}>❤️</span>
+                  ) : (
+                    <span style={{ color: textMain, fontSize: "1.2rem" }}>🤍</span>
+                  )}
+                </FloatingWishlistIcon>
+                <img src={activeImage} alt={product.name} />
+              </ImageWrapper>
+            )}
+            
+            <p style={{ fontSize: "12px", color: textMuted }}>Click thumbnail to view alternate media</p>
+
+            {/* Thumbnails Row including images and optional video thumbnail */}
+            {(product.images.length > 1 || product.videoUrl) && (
+              <ThumbnailsRow>
+                {/* Video Thumbnail if videoUrl exists */}
+                {product.videoUrl && (
+                  <Thumbnail
+                    key="video-thumb"
+                    $active={viewingVideo}
+                    onClick={() => {setViewingVideo(true);window.scroll(0,0)}}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', position: 'relative' }}
+                  >
+                    <video src={product.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+                    <span style={{ position: 'absolute', color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>▶</span>
+                  </Thumbnail>
+                )}
+
+                {/* Image Thumbnails */}
+                {product.images.map((imgUrl, index) => (
+                  <Thumbnail
+                    key={index}
+                    $active={!viewingVideo && selectedImageIndex === index}
+                    onClick={() => {
+                      setViewingVideo(false);
+                      setSelectedImageIndex(index);
+                    }}
                   >
                     <img src={imgUrl} alt={`${product.name} thumbnail ${index + 1}`} />
                   </Thumbnail>
