@@ -16,6 +16,7 @@ import styled from "styled-components";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { primaryColoring, secondaryColoring } from "@/components/Context";
+import imageCompression from "browser-image-compression";
 
 // 🎨 ENITZ BRAND THEME COLORS
 const PrimaryNavy = primaryColoring;
@@ -543,56 +544,76 @@ const ProductVideo = styled.video`
 
 
 // 🔹 Compression utility function
-const compressImage = (file, maxSizeKB = 100) => {
-  return new Promise((resolve, reject) => {
-    if (!file) return reject(new Error("No file provided"));
+// const compressImage = (file, maxSizeKB = 100) => {
+//   return new Promise((resolve, reject) => {
+//     if (!file) return reject(new Error("No file provided"));
 
-    const reader = new FileReader();
+//     const reader = new FileReader();
 
-    reader.onload = (e) => {
-      const img = document.createElement("img");
-      img.src = e.target.result;
+//     reader.onload = (e) => {
+//       const img = document.createElement("img");
+//       img.src = e.target.result;
 
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800;
-        const scaleSize = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+//       img.onload = () => {
+//         const canvas = document.createElement("canvas");
+//         const MAX_WIDTH = 800;
+//         const scaleSize = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
 
-        canvas.width = img.width * scaleSize;
-        canvas.height = img.height * scaleSize;
+//         canvas.width = img.width * scaleSize;
+//         canvas.height = img.height * scaleSize;
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+//         const ctx = canvas.getContext("2d");
+//         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        let quality = 0.7;
+//         let quality = 0.7;
 
-        const compressLoop = () => {
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) return reject(new Error("Compression failed"));
+//         const compressLoop = () => {
+//           canvas.toBlob(
+//             (blob) => {
+//               if (!blob) return reject(new Error("Compression failed"));
 
-              const sizeKB = blob.size / 1024;
-              if (sizeKB <= maxSizeKB || quality <= 0.1) {
-                resolve(blob);
-              } else {
-                quality -= 0.1;
-                compressLoop();
-              }
-            },
-            "image/jpeg",
-            quality
-          );
-        };
+//               const sizeKB = blob.size / 1024;
+//               if (sizeKB <= maxSizeKB || quality <= 0.1) {
+//                 resolve(blob);
+//               } else {
+//                 quality -= 0.1;
+//                 compressLoop();
+//               }
+//             },
+//             "image/jpeg",
+//             quality
+//           );
+//         };
 
-        compressLoop();
-      };
+//         compressLoop();
+//       };
 
-      img.onerror = () => reject(new Error("Image load failed"));
-    };
+//       img.onerror = () => reject(new Error("Image load failed"));
+//     };
 
-    reader.onerror = () => reject(new Error("File reading failed"));
-    reader.readAsDataURL(file);
-  });
+//     reader.onerror = () => reject(new Error("File reading failed"));
+//     reader.readAsDataURL(file);
+//   });
+// };
+
+// 🔹 Clean, mobile-safe compression using browser-image-compression
+const compressImage = async (file, maxSizeKB = 100) => {
+  if (!file) throw new Error("No file provided");
+
+  const options = {
+    maxSizeMB: maxSizeKB / 1024, // Convert KB to MB (e.g., 100KB = ~0.097MB)
+    maxWidthOrHeight: 800,       // Resizes large mobile dimensions safely
+    useWebWorker: true,          // Runs off the main thread to prevent mobile freezing
+    fileType: "image/jpeg",      // Normalizes output format
+  };
+
+  try {
+    const compressedFile = await imageCompression(file, options);
+    return compressedFile;
+  } catch (error) {
+    console.error("Compression failed, falling back to original file:", error);
+    return file; // Fallback if anything goes wrong on low-end devices
+  }
 };
 
 
@@ -810,19 +831,52 @@ const handleVideoFileChange = (e) => {
         didOpen: () => Swal.showLoading(),
       });
 
+      // let finalImageUrls = [];
+
+      // for (let i = 0; i < 4; i++) {
+      //   if (imageFiles[i]) {
+      //     const compressedBlob = await compressImage(imageFiles[i], 100);
+
+      //     const data = new FormData();
+      //     data.append("file", compressedBlob, `product_${i}.jpg`);
+      //     data.append("upload_preset", "bees_interior");
+      //     data.append("folder", "products_pinkles");
+
+      //     const res = await fetch(
+      //       "https://api.cloudinary.com/v1_1/aqxyleoh/image/upload",
+      //       {
+      //         method: "POST",
+      //         body: data,
+      //       }
+      //     );
+
+      //     const result = await res.json();
+
+      //     if (!res.ok) {
+      //       throw new Error(result.error?.message || `Image upload failed for slot ${i + 1}`);
+      //     }
+
+      //     finalImageUrls.push(result.secure_url);
+      //   } else if (existingImageUrls[i]) {
+      //     finalImageUrls.push(existingImageUrls[i]);
+      //   }
+      // }
+
+      // Handle Video Upload to Cloudinary
+      
       let finalImageUrls = [];
 
       for (let i = 0; i < 4; i++) {
         if (imageFiles[i]) {
-          const compressedBlob = await compressImage(imageFiles[i], 100);
+          const compressedFile = await compressImage(imageFiles[i], 100);
 
           const data = new FormData();
-          data.append("file", compressedBlob, `product_${i}.jpg`);
-          data.append("upload_preset", "bees_interior");
+          data.append("file", compressedFile, `product_${i}.jpg`);
+          data.append("upload_preset", "echobyte_digital_store_upload");
           data.append("folder", "products_pinkles");
 
           const res = await fetch(
-            "https://api.cloudinary.com/v1_1/aqxyleoh/image/upload",
+            "https://api.cloudinary.com/v1_1/ddh4wrbok/image/upload",
             {
               method: "POST",
               body: data,
@@ -840,17 +894,42 @@ const handleVideoFileChange = (e) => {
           finalImageUrls.push(existingImageUrls[i]);
         }
       }
+      
+      
+      // let finalVideoUrl = existingVideoUrl;
+      // if (videoFile) {
+      //   const videoData = new FormData();
+      //   videoData.append("file", videoFile);
+      //   videoData.append("upload_preset", "bees_interior");
+      //   videoData.append("folder", "products_pinkles_videos");
+
+      //   const videoRes = await fetch(
+      //     "https://api.cloudinary.com/v1_1/aqxyleoh/video/upload",
+      //     {
+      //       method: "POST",
+      //       body: videoData,
+      //     }
+      //   );
+
+      //   const videoResult = await videoRes.json();
+
+      //   if (!videoRes.ok) {
+      //     throw new Error(videoResult.error?.message || "Video upload failed");
+      //   }
+
+      //   finalVideoUrl = videoResult.secure_url;
+      // }
 
       // Handle Video Upload to Cloudinary
       let finalVideoUrl = existingVideoUrl;
       if (videoFile) {
         const videoData = new FormData();
         videoData.append("file", videoFile);
-        videoData.append("upload_preset", "bees_interior");
+        videoData.append("upload_preset", "echobyte_digital_store_upload");
         videoData.append("folder", "products_pinkles_videos");
 
         const videoRes = await fetch(
-          "https://api.cloudinary.com/v1_1/aqxyleoh/video/upload",
+          "https://api.cloudinary.com/v1_1/ddh4wrbok/video/upload",
           {
             method: "POST",
             body: videoData,
